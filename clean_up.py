@@ -79,9 +79,11 @@ def clean_up(dir, show_collisions=False, delete=False):
     
     if show_collisions:
         display_collisions(collisions)
-    
+    else:
+        print (f"Duplicates were found for {len(collisions)} individual files\n")
 
     if delete:
+        input ("Proceed to Delete? Hit Enter to Continue: ")
         if collisions:
             warning_message = """
             WARNING: Deleting duplicate files can be dangerous!
