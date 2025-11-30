@@ -47,7 +47,7 @@ install-deps:
 	@echo "If you are on macOS (with Homebrew):"
 	@echo "  $(INSTALL_CMD_MACOS)"
 	@echo ""
-	@echo "If you are on Debian/Ubuntu/WSL (Linux):"
+	@echo "If you are on Debian/Ubuntu:"
 	@echo "  $(INSTALL_CMD_LINUX)"
 	@echo "--------------------------------------------------------"
 
