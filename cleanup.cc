@@ -11,6 +11,7 @@
 #include <thread>
 #include <future>
 #include <mutex>
+#include <system_error>
 #include <queue>
 #include <openssl/evp.h>
 
@@ -117,22 +118,52 @@ std::vector<FileResult> process_files_parallel(const std::vector<fs::path>& file
 // Logic: Core Functionality
 // ---------------------------------------------------------
 
+
 std::vector<fs::path> get_file_paths(const std::string& dir) {
     std::vector<fs::path> file_paths;
-    try {
-        if (!fs::exists(dir) || !fs::is_directory(dir)) {
-            std::cerr << "Error: Directory not found." << std::endl;
-            return file_paths;
-        }
+    
+    // Check if the directory exists first
+    std::error_code ec_dir_check;
+    if (!fs::exists(dir, ec_dir_check) || !fs::is_directory(dir, ec_dir_check)) {
+        std::cerr << "Error: Directory not found or inaccessible: " << dir << "\n";
+        return file_paths;
+    }
 
-        for (const auto& entry : fs::recursive_directory_iterator(dir)) {
-            if (fs::is_regular_file(entry)) {
-                file_paths.push_back(fs::absolute(entry.path()));
+    // Start the recursive iteration
+    // Use the error_code overload to prevent throwing an exception
+    // when a permission issue is encountered.
+    fs::recursive_directory_iterator it(dir, ec_dir_check);
+    
+    // Check for an initial error before looping
+    if (ec_dir_check) {
+        std::cerr << "Error initializing iterator for " << dir << ": " << ec_dir_check.message() << "\n";
+        return file_paths;
+    }
+    
+    // Create a default iterator for the end condition
+    fs::recursive_directory_iterator end_it;
+
+    try {
+        for (; it != end_it; it.increment(ec_dir_check)) {
+            // If the increment caused an error (e.g., Permission denied)
+            if (ec_dir_check) {
+                std::cerr << "Skipping inaccessible directory: " << it->path().string() << " (" << ec_dir_check.message() << ")\n";
+                // Clear the error code and reset for the next increment
+                ec_dir_check.clear(); 
+                continue; 
+            }
+
+            // Standard file processing logic
+            if (fs::is_regular_file(*it)) {
+                file_paths.push_back(fs::absolute(it->path()));
             }
         }
     } catch (const fs::filesystem_error& e) {
-        std::cerr << "Filesystem error: " << e.what() << '\n';
+        // This catch block is less likely to be hit with the error_code overload, 
+        // but it's kept for general safety.
+        std::cerr << "General Filesystem error during traversal: " << e.what() << "\n";
     }
+    
     return file_paths;
 }
 
